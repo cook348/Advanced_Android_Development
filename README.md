@@ -1,3 +1,9 @@
+
+Daniel Cook's Fork for Go Ubiquitous Project
+============================================
+In order to use this application, you must add a string to strings.xml with the name=open_weather_api_key containing your api key 
+
+
 Advanced Android Sample App
 ===================================
 

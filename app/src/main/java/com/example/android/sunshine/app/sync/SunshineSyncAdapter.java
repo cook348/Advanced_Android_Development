@@ -30,7 +30,6 @@ import android.text.format.Time;
 import android.util.Log;
 
 import com.bumptech.glide.Glide;
-import com.example.android.sunshine.app.BuildConfig;
 import com.example.android.sunshine.app.MainActivity;
 import com.example.android.sunshine.app.R;
 import com.example.android.sunshine.app.Utility;
@@ -143,10 +142,13 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
                 uriBuilder.appendQueryParameter(QUERY_PARAM, locationQuery);
             }
 
+            // In order to use this application, you must add a string to strings.xml with the name=open_weather_api_key containing your api key
+            String apiKey = getContext().getString(R.string.open_weather_api_key);
+
             Uri builtUri = uriBuilder.appendQueryParameter(FORMAT_PARAM, format)
                     .appendQueryParameter(UNITS_PARAM, units)
                     .appendQueryParameter(DAYS_PARAM, Integer.toString(numDays))
-                    .appendQueryParameter(APPID_PARAM, BuildConfig.OPEN_WEATHER_MAP_API_KEY)
+                    .appendQueryParameter(APPID_PARAM, apiKey)
                     .build();
 
             URL url = new URL(builtUri.toString());
