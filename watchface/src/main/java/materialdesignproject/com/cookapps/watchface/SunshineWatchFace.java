@@ -21,22 +21,29 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 import android.widget.Toast;
 
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -58,6 +65,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
      * Handler message id for updating the time periodically in interactive mode.
      */
     private static final int MSG_UPDATE_TIME = 0;
+
 
     @Override
     public Engine onCreateEngine() {
@@ -92,6 +100,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         Paint mDateTextPaint;
         Paint mTempsTextPaintHigh;
         Paint mTempsTextPaintLow;
+        Paint mLinePaint;
+        Paint mIconPaint;
 
         boolean mAmbient;
         Calendar mCalendar;
@@ -114,11 +124,18 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         float mLineXOffset;
         float mLineYOffset;
 
+        float mIconWidth;
+
+        float mIconPadding;
+
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
          * disable anti-aliasing in ambient mode.
          */
         boolean mLowBitAmbient;
+        private Bitmap mIconBitmap;
+
+        private SimpleDateFormat mDateFormat;
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -136,22 +153,42 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mTempsYOffset = resources.getDimension(R.dimen.temps_y_offset);
             mLineYOffset = resources.getDimension(R.dimen.line_y_offset);
 
+            mIconPadding = resources.getDimension(R.dimen.icon_padding);
+
+//            mIconWidth = resources.getDimension(R.dimen.icon_width);
+
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(resources.getColor(R.color.background));
 
             mTimeTextPaint = new Paint();
             mTimeTextPaint = createTextPaint(resources.getColor(R.color.lighter_text));
+            mTimeTextPaint.setTextAlign(Paint.Align.CENTER);
 
             mDateTextPaint = new Paint();
             mDateTextPaint = createTextPaint(resources.getColor(R.color.darker_text));
+            mDateTextPaint.setTextAlign(Paint.Align.CENTER);
 
             mTempsTextPaintHigh = new Paint();
             mTempsTextPaintHigh = createTextPaint(resources.getColor(R.color.lighter_text));
+            mTempsTextPaintHigh.setTextAlign(Paint.Align.CENTER);
 
             mTempsTextPaintLow = new Paint();
             mTempsTextPaintLow = createTextPaint(resources.getColor(R.color.darker_text));
+//            mTempsTextPaintLow.setTextAlign(Paint.Align.CENTER);
+
+            mLinePaint = new Paint();
+            mLinePaint.setColor(resources.getColor(R.color.lighter_text));
+
+            mIconPaint = new Paint();
 
             mCalendar = Calendar.getInstance();
+
+            // Load the icon - dummy for now
+            Drawable backgroundDrawable = resources.getDrawable(R.drawable.art_clear, null);
+            mIconBitmap = ((BitmapDrawable) backgroundDrawable).getBitmap();
+
+            mDateFormat = new SimpleDateFormat("EEE, d MMM, yyyy", Locale.US);
+
         }
 
         @Override
@@ -240,6 +277,15 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mTempsTextPaintHigh.setTextSize(tempsTextSize);
             mTempsTextPaintLow.setTextSize(tempsTextSize);
 
+            // get temp bounds in order to properly size the icon bounding box
+            Rect tempBounds = new Rect();
+            mTempsTextPaintHigh.getTextBounds("25", 0, "25".length(), tempBounds);
+
+            float textH = tempBounds.bottom - tempBounds.top;
+            Log.d("WatchFace", "Text Height = " + Float.toString(textH));
+
+            mIconWidth = textH + mIconPadding; //The height of the text plus padding
+
             /*
             Line Dimensions
              */
@@ -299,11 +345,22 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
+
+            // Get dimensions and center - adapted from https://developer.android.com/training/wearables/watch-faces/drawing.html
+            int width = bounds.width();
+            int height = bounds.height();
+
+            float centerX = width / 2f;
+            float centerY = height / 2f;
+
+            float thirdW = width / 3f;
+
+            float lineHalfLength = 30f;
+
             // Draw the background.
             if (isInAmbientMode()) {
                 canvas.drawColor(Color.BLACK);
             } else {
-                // TODO: draw the background color?
                 canvas.drawRect(0, 0, bounds.width(), bounds.height(), mBackgroundPaint);
             }
 
@@ -316,16 +373,34 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     mCalendar.get(Calendar.MINUTE))
                     : String.format("%d:%02d:%02d", mCalendar.get(Calendar.HOUR),
                     mCalendar.get(Calendar.MINUTE), mCalendar.get(Calendar.SECOND));
-            canvas.drawText(text, mTimeXOffset, mTimeYOffset, mTimeTextPaint);
+            canvas.drawText(text, centerX, mTimeYOffset, mTimeTextPaint);
 
+
+            // TODO replace the date text with real stuff
+            // TODO get the data from sunshine: High and Low
+
+            // TODO make ambient mode show a little something more, like outlines of icon
 
             if(!mAmbient){
-                // TODO: format and draw Date Text if not in ambient mode
-                canvas.drawText("Fri, Jul 14 2015", mDateXOffset, mDateYOffset, mDateTextPaint);
-                canvas.drawText("25", mTempsXOffset, mTempsYOffset, mTempsTextPaintHigh);
 
-                // TODO: draw Icon and High and Low temps only in interactive mode
+                float tempBaseline = height - mTempsYOffset;
 
+                String date = mDateFormat.format(mCalendar.getTime());
+
+                canvas.drawText(date, centerX, mDateYOffset, mDateTextPaint);
+                canvas.drawText("25", centerX, tempBaseline, mTempsTextPaintHigh);
+                canvas.drawText("16", width - thirdW, tempBaseline, mTempsTextPaintLow);
+
+                // Center Line
+                canvas.drawLine(centerX-lineHalfLength, centerY, centerX + lineHalfLength, centerY, mLinePaint);
+
+                // Icon
+                RectF rectF = new RectF(thirdW - mIconWidth,
+                        tempBaseline-(mIconWidth-mIconPadding/2),
+                        thirdW,
+                        tempBaseline+mIconPadding/2);
+
+                canvas.drawBitmap(mIconBitmap, null, rectF, null);
             }
 
         }
