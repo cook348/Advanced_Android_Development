@@ -6,12 +6,14 @@ android {
     buildToolsVersion "24.0.2"
 
     defaultConfig {
-        applicationId "materialdesignproject.com.cookapps.watchface"
+        applicationId "com.example.android.sunshine.app"
         minSdkVersion 21
         targetSdkVersion 25
         versionCode 1
         versionName "1.0"
     }
+
+
     buildTypes {
         release {
             minifyEnabled false
@@ -23,5 +25,5 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.google.android.support:wearable:2.0.0-alpha3'
-    compile 'com.google.android.gms:play-services-wearable:10.0.0'
+    compile 'com.google.android.gms:play-services-wearable:9.4.0'
 }
