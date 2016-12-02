@@ -41,7 +41,6 @@ import android.support.wearable.watchface.WatchFaceStyle;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
-import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -322,7 +321,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mTempsTextPaintHigh.getTextBounds("25", 0, "25".length(), tempBounds);
 
             float textH = tempBounds.bottom - tempBounds.top;
-            Log.d("WatchFace", "Text Height = " + Float.toString(textH));
 
             mIconWidth = textH + mIconPadding; //The height of the text plus padding
 
@@ -375,8 +373,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     break;
                 case TAP_TYPE_TAP:
                     // The user has completed the tap gesture.
-                    Toast.makeText(getApplicationContext(), R.string.message, Toast.LENGTH_SHORT)
-                            .show();
+//                    Toast.makeText(getApplicationContext(), R.string.message, Toast.LENGTH_SHORT)
+//                            .show();
                     break;
             }
             invalidate();
@@ -423,7 +421,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
                 canvas.drawText(date, centerX, mDateYOffset, mDateTextPaint);
 
-                // TODO use Utility.format temperature to format the temperature received from the device
                 canvas.drawText(mHighTempText, centerX, tempBaseline, mTempsTextPaintHigh);
                 canvas.drawText(mLowTempText, width - thirdW, tempBaseline, mTempsTextPaintLow);
 
@@ -476,27 +473,23 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         @Override
         public void onDataChanged(DataEventBuffer dataEventBuffer) {
 
-            // TODO instead of getting the asset, get the weatherId and determine which assets to load on this end
 
             Log.d("Watchface", "onDataChanged Called from inside Engine");
-            //TODO handle the data changes here
             for (DataEvent dataEvent : dataEventBuffer) {
-                if (dataEvent.getType() != DataEvent.TYPE_CHANGED) {
+                if (dataEvent.getType() == DataEvent.TYPE_CHANGED) {
                     DataMap dataMap = DataMapItem.fromDataItem(dataEvent.getDataItem()).getDataMap();
                     String path = dataEvent.getDataItem().getUri().getPath();
                     if(path.equals("/sunshine-forecast")){
-                        double highTemp = dataMap.getDouble("high-temp");
-                        double lowTemp = dataMap.getDouble("low-temp");
-                        Asset iconAsset = dataMap.getAsset("icon-asset");
+                        mHighTempText = dataMap.getString("high-temp");
+                        mLowTempText = dataMap.getString("low-temp");
+                        int weatherId = dataMap.getInt("weatherId");
 
                         Log.d("Watchface", "Successfully received data items from mobile");
 
-                        // TODO update the ui elements accordingly
-                        mHighTempText = Double.toString(highTemp);
-                        mLowTempText = Double.toString(lowTemp);
+                        // load the appropriate drawable given the weatherId and set as the mIconBitmap
+                        int iconId = Utility.getArtResourceForWeatherCondition(weatherId);
+                        mIconBitmap = BitmapFactory.decodeResource(getApplicationContext().getResources(),iconId);
 
-                        // TODO convert the iconAsset to a bitmap
-                        mIconBitmap = loadBitmapFromAsset(iconAsset);
                         invalidate();
 
                     }
@@ -554,4 +547,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             }
         }
     }
+
+
 }

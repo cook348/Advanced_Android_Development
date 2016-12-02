@@ -40,7 +40,6 @@ import com.example.android.sunshine.app.muzei.WeatherMuzeiSource;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
@@ -51,7 +50,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -99,19 +97,18 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
     public void onConnected(@Nullable Bundle bundle) {
         Log.d(LOG_TAG, "GoogleApi connected");
 
-        Asset iconAsset = getIconAssetFromWeatherId(mWeatherId);
+        String highTempString = Utility.formatTemperature(mContext, mHighTemp);
+        String lowTempString = Utility.formatTemperature(mContext, mLowTemp);
 
         PutDataMapRequest putDataMapRequest = PutDataMapRequest.create("/sunshine-forecast");
-
-        putDataMapRequest.getDataMap().putDouble("high-temp", mHighTemp);
-        putDataMapRequest.getDataMap().putDouble("low-temp", mLowTemp);
-//        putDataMapRequest.getDataMap().putAsset("icon-asset", iconAsset);
+        putDataMapRequest.getDataMap().putString("high-temp", highTempString);
+        putDataMapRequest.getDataMap().putString("low-temp", lowTempString);
+        putDataMapRequest.getDataMap().putInt("weatherId", mWeatherId);
         putDataMapRequest.getDataMap().putLong("time",System.currentTimeMillis()); //Per recommendation in Udacity forum to ensure data refreshes with each send: https://discussions.udacity.com/t/ubiquitous-problem/201048/3
 
         PutDataRequest request = putDataMapRequest.asPutDataRequest();
         putDataMapRequest.setUrgent();
-
-        // TODO send the weatherId instead of the asset
+        request.setUrgent();
 
         Wearable.DataApi.putDataItem(mGoogleApiClient, request)
                 .setResultCallback(new ResultCallback<DataApi.DataItemResult>() {
@@ -466,22 +463,6 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
         }
     }
 
-    private Asset getIconAssetFromWeatherId(int id){
-        int iconId = Utility.getIconResourceForWeatherCondition(id);
-        Bitmap icon = BitmapFactory.decodeResource(mContext.getResources(),iconId);
-        return createAssetFromBitmap(icon);
-    }
-
-    /**
-     * Convenience method from https://developer.android.com/training/wearables/data-layer/assets.html
-     * @param bitmap
-     * @return
-     */
-    private static Asset createAssetFromBitmap(Bitmap bitmap) {
-        final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
-        return Asset.createFromBytes(byteStream.toByteArray());
-    }
 
     private void updateWidgets() {
         Context context = getContext();
