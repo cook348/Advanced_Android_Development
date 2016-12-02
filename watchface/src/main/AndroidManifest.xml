@@ -39,19 +39,6 @@
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
 
-        <service
-            android:name="com.example.android.sunshine.app.WeatherDataService"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <!-- listeners for weather service-->
-                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
-                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
-                <action android:name="com.google.android.gms.wearable.CAPABILITY_CHANGED" />
-                <action android:name="com.google.android.gms.wearable.CHANNEL_EVENT" />
-                <data android:scheme="wear" android:host="*" android:pathPrefix="/sunshine-forecast" />
-            </intent-filter>
-        </service>
     </application>
 
 </manifest>
