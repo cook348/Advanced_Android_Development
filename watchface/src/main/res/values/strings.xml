@@ -2,4 +2,8 @@
     <string name="app_name">Watchface</string>
     <string name="message">Watch face tapped</string>
     <string name="my_digital_name">Sunshine Watch Face</string>
+    <string name="shared_preferences_key">shared preferences</string>
+    <string name="temp_default_string">-</string>
+
+    <string name="weather_id_default">801</string>
 </resources>

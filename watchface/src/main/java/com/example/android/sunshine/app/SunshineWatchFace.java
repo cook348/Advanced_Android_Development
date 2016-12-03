@@ -20,6 +20,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -44,7 +45,6 @@ import android.view.WindowInsets;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
@@ -52,7 +52,6 @@ import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
 
-import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -159,9 +158,16 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 .addOnConnectionFailedListener(this)
                 .addApi(Wearable.API)
                 .build();
-        private String mLowTempText = "0";
-        private String mHighTempText = "0";
 
+        private String mLowTempText;
+        private String mHighTempText;
+        private int mWeatherId;
+
+        // Shared Preferences and Keys
+        private SharedPreferences mPrefs;
+        private final String EXTRA_LOW_TEMP = "lowtemp";
+        private final String EXTRA_HIGH_TEMP = "hightemp";
+        private final String EXTRA_WEATHER_ID = "weatherid";
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -173,16 +179,16 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     .setShowSystemUiTime(false)
                     .setAcceptsTapEvents(true)
                     .build());
+
+            // Get Dimensions
             Resources resources = SunshineWatchFace.this.getResources();
             mTimeYOffset = resources.getDimension(R.dimen.time_y_offset);
             mDateYOffset = resources.getDimension(R.dimen.date_y_offset);
             mTempsYOffset = resources.getDimension(R.dimen.temps_y_offset);
             mLineYOffset = resources.getDimension(R.dimen.line_y_offset);
-
             mIconPadding = resources.getDimension(R.dimen.icon_padding);
 
-//            mIconWidth = resources.getDimension(R.dimen.icon_width);
-
+            // Set up paint objects
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(resources.getColor(R.color.background));
 
@@ -200,21 +206,32 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
             mTempsTextPaintLow = new Paint();
             mTempsTextPaintLow = createTextPaint(resources.getColor(R.color.darker_text));
-//            mTempsTextPaintLow.setTextAlign(Paint.Align.CENTER);
 
             mLinePaint = new Paint();
             mLinePaint.setColor(resources.getColor(R.color.lighter_text));
 
             mIconPaint = new Paint();
 
-            mCalendar = Calendar.getInstance();
-
-            // Load the icon - dummy for now
+            // Load the default clear icon
             Drawable backgroundDrawable = resources.getDrawable(R.drawable.art_clear, null);
             mIconBitmap = ((BitmapDrawable) backgroundDrawable).getBitmap();
 
+            // Get the Calendar object and DateFormat
+            mCalendar = Calendar.getInstance();
             mDateFormat = new SimpleDateFormat("EEE, d MMM, yyyy", Locale.US);
 
+            // Get Default Values from Shared Preferences
+            mPrefs = getApplicationContext().getSharedPreferences(
+                    getString(R.string.shared_preferences_key), Context.MODE_PRIVATE);
+
+            mLowTempText = mPrefs.getString(EXTRA_LOW_TEMP, getResources().getString(R.string.temp_default_string));
+            mHighTempText = mPrefs.getString(EXTRA_HIGH_TEMP, getResources().getString(R.string.temp_default_string));
+            int defaultValue = Integer.parseInt(getResources().getString(R.string.weather_id_default));
+            mWeatherId = mPrefs.getInt(EXTRA_WEATHER_ID, defaultValue);
+
+            // load the appropriate drawable given the weatherId and set as the mIconBitmap
+            int iconId = Utility.getArtResourceForWeatherCondition(mWeatherId);
+            mIconBitmap = BitmapFactory.decodeResource(getApplicationContext().getResources(),iconId);
 
         }
 
@@ -242,7 +259,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
                 // Connect GoogleApi Client
                 mGoogleApiClient.connect();
-                Log.d("WatchFace", "Attempting to connect GoogleApiClient");
 
                 // Update time zone in case it changed while we weren't visible.
                 mCalendar.setTimeZone(TimeZone.getDefault());
@@ -254,7 +270,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 if (mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
                     Wearable.DataApi.removeListener(mGoogleApiClient, this);
                     mGoogleApiClient.disconnect();
-                    Log.d("WatchFace", "Disconnecting GoogleApiClient");
                 }
             }
 
@@ -328,6 +343,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             Line Dimensions
              */
             mLineXOffset = resources.getDimension(R.dimen.line_x_offset);
+
         }
 
         @Override
@@ -373,8 +389,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     break;
                 case TAP_TYPE_TAP:
                     // The user has completed the tap gesture.
-//                    Toast.makeText(getApplicationContext(), R.string.message, Toast.LENGTH_SHORT)
-//                            .show();
                     break;
             }
             invalidate();
@@ -473,8 +487,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         @Override
         public void onDataChanged(DataEventBuffer dataEventBuffer) {
 
-
-            Log.d("Watchface", "onDataChanged Called from inside Engine");
             for (DataEvent dataEvent : dataEventBuffer) {
                 if (dataEvent.getType() == DataEvent.TYPE_CHANGED) {
                     DataMap dataMap = DataMapItem.fromDataItem(dataEvent.getDataItem()).getDataMap();
@@ -482,13 +494,17 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     if(path.equals("/sunshine-forecast")){
                         mHighTempText = dataMap.getString("high-temp");
                         mLowTempText = dataMap.getString("low-temp");
-                        int weatherId = dataMap.getInt("weatherId");
-
-                        Log.d("Watchface", "Successfully received data items from mobile");
+                        mWeatherId = dataMap.getInt("weatherId");
 
                         // load the appropriate drawable given the weatherId and set as the mIconBitmap
-                        int iconId = Utility.getArtResourceForWeatherCondition(weatherId);
+                        int iconId = Utility.getArtResourceForWeatherCondition(mWeatherId);
                         mIconBitmap = BitmapFactory.decodeResource(getApplicationContext().getResources(),iconId);
+
+                        SharedPreferences.Editor editor = mPrefs.edit();
+                        editor.putInt(EXTRA_WEATHER_ID, mWeatherId);
+                        editor.putString(EXTRA_HIGH_TEMP, mHighTempText);
+                        editor.putString(EXTRA_LOW_TEMP, mLowTempText);
+                        editor.apply();
 
                         invalidate();
 
@@ -498,32 +514,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             }
         }
 
-        /**
-         * Convenience method from https://developer.android.com/training/wearables/data-layer/assets.html
-         * @param asset
-         * @return
-         */
-        public Bitmap loadBitmapFromAsset(Asset asset) {
-            if (asset == null) {
-                throw new IllegalArgumentException("Asset must be non-null");
-            }
-            ConnectionResult result =
-                    mGoogleApiClient.blockingConnect(ConnectionResult.TIMEOUT, TimeUnit.MILLISECONDS);
-            if (!result.isSuccess()) {
-                return null;
-            }
-            // convert asset into a file descriptor and block until it's ready
-            InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
-                    mGoogleApiClient, asset).await().getInputStream();
-            mGoogleApiClient.disconnect();
-
-            if (assetInputStream == null) {
-                Log.w("WatchFace", "Requested an unknown Asset.");
-                return null;
-            }
-            // decode the stream into a bitmap
-            return BitmapFactory.decodeStream(assetInputStream);
-        }
 
         @Override
         public void onConnected(@Nullable Bundle bundle) {
